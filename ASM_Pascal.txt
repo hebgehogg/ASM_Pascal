@@ -1,0 +1,138 @@
+{$ASMMODE INTEL}
+{$OUTPUT_FORMAT ASW} //ЛАБ3, ВАРИАНТ 12, ОВЧИННИКОВА АЛИНА ПИ-18-1
+
+var 
+    k, n : integer;
+    a, b, step, e : double;
+    se, sn, s, x, y : double;
+    one, two : double;
+    _true : boolean;
+begin
+    a:= 0.1;
+    b:= 0.8;
+    k:= 10;
+    e:= 0.0001;
+    _true:=true;
+while (_true=true) do
+begin
+asm
+
+jmp @START
+    
+@GETY://(-1)*0.5*ln(1-(2*x*Cos(Pi/3))+x*x)
+    finit
+    fldpi//помещение Pi в вверх стека (push)
+    mov n, 3
+    fidiv n//Pi/3
+    fcos//косинус первого(верхнего) числа в стеке//cos(Pi/3)
+    mov n, 2
+    fimul n//2*cos(Pi/3)
+    fmul x//2*x*cos(Pi/3)
+    fstp y//y=2*x*cos(Pi/3)
+    finit
+    fld1//константа 1(единица)
+    fsub y//1-y//1-2*x*cos(Pi/3)
+    fstp y//y=1-2*x*cos(Pi/3)
+    finit
+    fld x//помещение x в вверх стека
+    fmul x//x^2
+    fadd y//1-2*x*cos(Pi/3)+x^2
+    fstp y//y=1-2*x*cos(Pi/3)+x^2
+    finit//весь блок выполняем функцию нахождения натурального лог ln(y) тк в asm нет команды для нахождения ln(x) //формула ln(x)=log2(x)*ln(2)
+    fld1//y=1 единицу тк по формуле y*log2(x) а нам нужно только log2(x)
+    fld y
+    fyl2x//команда сопроц x=y*log2(x)
+    fstp y//промежуточный результат выписываем в y
+    finit
+    fldln2//закидываем константу ln(2) вверх
+    fmul y//умножаем y на ln(2)
+    fstp y//получаем ln(x) //y=ln(1-2*x*cos(Pi/3)+x^2)
+    finit
+    fld1
+    mov n, 2
+    fidiv n//x=0,5=1/2
+    fchs//меняем знак c 0.5 на -0.5
+    fmul y//умножаем //(-0.5)*ln(1-2*x*cos(Pi/3)+x^2)
+    fstp y//достаем результат из стека//y=(-0.5)*ln(1-2*x*cos(Pi/3)+x^2)
+    ret
+    
+@GETS://s = x^n* Cos(n*(PI / 3))/n;
+    finit
+    fldpi//помещение Pi в вверх стека (push)
+    push n//что бы изменить и потом вернуть значение(что бы меньше переменных использовать)
+    mov n, 3
+    fidiv n//pi/3
+    pop n
+    fimul n//n*pi/3
+    fcos//cos(n*pi/3)
+    fstp one//one=cos(n*pi/3)
+    cmp n, 1//1 и 1 то нет возведения в степень
+    je @ENDPOW
+    finit
+    fld two
+    fmul x
+    fstp two
+@ENDPOW:
+    finit
+    fld two//two=x^n
+    fmul one//умножаем на cos(n*pi/3) //x^n*cos(n*pi/3)
+    fidiv n//делим на n //x^n*cos(n*pi/3)/n
+    fstp s//из стека достали x^n*cos(n*pi/3)/n и положили в s   
+    ret
+    
+@SECOND://sn цикл
+    call @GETS
+    finit
+    fld s//положили s в стек
+    fadd sn//s+sn
+    fstp sn//sn=s+sn
+    inc n
+    cmp n, 36
+    jne @SECOND//если не 36
+    ret
+
+@FIRST:
+    call @GETS
+    finit
+    fld s//положили s в стек
+    fadd se//s+se
+    fstp se//достали se
+    inc n//n+1
+    finit
+    fld s//берем s
+    fabs//|s|
+    fcom e//сравниваем |s| с e
+    fstsw ax//флаги для сопроц
+    sahf//запись содержимого AH в младший байт регистра флагов
+    ja @FIRST//|s|>e
+    ret
+    
+@XA://x=a
+    push a
+    pop x
+@START:
+    cmp x, 0//проверка на пустоту x
+    je @XA
+    finit
+    fld b//загружаем b в верх стека
+    fsub a//b-a
+    fidiv k//(b-a)/k
+    fstp step//step=(b-a)/k
+    mov se, 0//обнулили
+    mov n, 1//обнулили
+    push x
+    pop two
+    call @FIRST
+    mov n, 1//обнуляем n
+    mov sn, 0//точность до заданного n
+    push x
+    pop two
+    call @SECOND//второй вайл
+    call @GETY
+
+end;
+writeln('X:= ', x:0:2, ' SN:= ', sn:0:16, ' SE:= ', se:0:16, ' Y:= ', y:0:16);//вывод
+x:=x+step;
+_true:=x<b;
+end;
+end.
